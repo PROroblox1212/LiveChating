@@ -7,7 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 import http from 'http';
 import { Server } from 'socket.io';
 
-// ---------------- Supabase Key (cachée dans le code) ----------------
+// ---------------- Supabase Key cachée ----------------
 const _k = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJicW5xb3J1ZWJidnRpY2pjeXZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU0ODYxOTYsImV4cCI6MjA3MTA2MjE5Nn0.Zy_1L1aIZmxEbgakFf1DXDXVccOwdnveaT-ueoomrRs';
 const _o = _k.split('').map(c => c.charCodeAt(0)+3).join('-');
 function _d(s){return String.fromCharCode(...s.split('-').map(n=>parseInt(n)-3));}
@@ -24,6 +24,7 @@ const io = new Server(server, { cors: { origin: "*" } });
 
 app.use(cors());
 app.use(bodyParser.json());
+app.use(express.static('public')); // sert le frontend
 
 // ---------------- Routes ----------------
 
