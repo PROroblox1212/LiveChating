@@ -1,1 +1,119 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Live Chat Stylé</title>
+<style>
+body { font-family: Arial, sans-serif; background: #f2f2f2; margin:0; padding:0; display:flex; flex-direction:column; height:100vh; }
+#loginForm, #chatContainer { width:100%; max-width:600px; margin:auto; padding:20px; }
+#chatContainer { display:none; flex:1; flex-direction:column; height:100vh; }
+#messages { flex:1; overflow-y:auto; padding:10px; display:flex; flex-direction:column; gap:8px; }
+.message { padding:10px; border-radius:12px; max-width:70%; word-wrap:break-word; display:flex; align-items:flex-start; gap:8px; }
+.left { background:#ddd; align-self:flex-start; }
+.right { background:#4CAF50; color:white; align-self:flex-end; flex-direction:row-reverse; }
+.avatar { width:30px; height:30px; border-radius:50%; background:#888; display:flex; align-items:center; justify-content:center; color:white; font-weight:bold; font-size:14px; }
+.tag { margin-left:5px; color: gold; font-weight:bold; }
+input, button { padding:10px; margin:5px 0; width:100%; box-sizing:border-box; }
+#notification { background:#ffeb3b; color:#000; padding:5px; text-align:center; display:none; position:fixed; top:0; width:100%; z-index:100; }
+</style>
+</head>
+<body>
 
+<div id="notification">Quelqu’un écrit...</div>
+
+<div id="loginForm">
+  <h2>Login / Register</h2>
+  <input id="username" placeholder="Nom d'utilisateur">
+  <input id="password" type="password" placeholder="Mot de passe">
+  <button id="registerBtn">Register</button>
+  <button id="loginBtn">Login</button>
+</div>
+
+<div id="chatContainer">
+  <div id="messages"></div>
+  <input id="messageInput" placeholder="Écris ton message...">
+  <button id="sendBtn">Envoyer</button>
+</div>
+
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+<script>
+const socket = io();
+let currentUser = { id:null, username:null, tag:null };
+
+// ---------------- Login / Register ----------------
+document.getElementById('registerBtn').onclick = async () => {
+  const username = document.getElementById('username').value;
+  const password = document.getElementById('password').value;
+  const res = await fetch('/register',{
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username,password })
+  });
+  const data = await res.json();
+  if(data.success) startChat(data);
+  else alert(data.message);
+};
+
+document.getElementById('loginBtn').onclick = async () => {
+  const username = document.getElementById('username').value;
+  const password = document.getElementById('password').value;
+  const res = await fetch('/login',{
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username,password })
+  });
+  const data = await res.json();
+  if(data.success) startChat(data);
+  else alert(data.message);
+};
+
+function startChat(data){
+  currentUser = { id:data.userId, username:data.username, tag:data.tag||'' };
+  document.getElementById('loginForm').style.display='none';
+  document.getElementById('chatContainer').style.display='flex';
+  loadMessages();
+}
+
+// ---------------- Messages ----------------
+async function loadMessages(){
+  const res = await fetch('/messages');
+  const messages = await res.json();
+  const container = document.getElementById('messages');
+  container.innerHTML = '';
+  messages.forEach(msg => addMessage(msg.username, msg.message, msg.user_id===currentUser.id, msg.username.toLowerCase()==='alexis'?'⭐':''));
+  container.scrollTop = container.scrollHeight;
+}
+
+function addMessage(username, message, isMine, tag){
+  const div = document.createElement('div');
+  div.className = 'message '+(isMine?'right':'left');
+  div.innerHTML = `
+    <div class="avatar">${username.charAt(0).toUpperCase()}</div>
+    <div><b>${username}</b>${tag?'<span class="tag">'+tag+'</span>':''}<br>${message}</div>
+  `;
+  const container = document.getElementById('messages');
+  container.appendChild(div);
+  div.scrollIntoView({ behavior:'smooth' });
+}
+
+// ---------------- Socket.io ----------------
+socket.on('newMessage', msg => {
+  showNotification(msg.username);
+  addMessage(msg.username, msg.message, msg.user_id===currentUser.id, msg.username.toLowerCase()==='alexis'?'⭐':'');
+});
+
+// Notification temporaire
+function showNotification(username){
+  if(username === currentUser.username) return;
+  const notif = document.getElementById('notification');
+  notif.innerText = username + " écrit...";
+  notif.style.display='block';
+  setTimeout(()=>{ notif.style.display='none'; }, 1500);
+}
+
+// ---------------- Send Message ----------------
+document.getElementById('sendBtn').onclick = () => {
+  const input = document.getElementById('messageInput');
+  if(input.value.trim()==='') return;
+  socket.emit('sendMessage', { userId:currentUser.id, username:currentUser.username, message: input.value });
+  input.value='';
+};
+</script>
+</body>
+</html>
