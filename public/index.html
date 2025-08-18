@@ -1,52 +1,69 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Live Chat</title>
+<title>Ultimate Owner Chat</title>
 <style>
-body { font-family: Arial; margin:0; padding:0; background:#f2f2f2; display:flex; flex-direction:column; height:100vh; }
-#menu, #loginForm, #registerForm, #chatContainer { width:100%; max-width:600px; margin:auto; padding:20px; display:none; }
-#menu { display:flex; flex-direction:column; gap:10px; align-items:center; margin-top:100px; }
-button { padding:10px 20px; font-size:16px; cursor:pointer; border:none; border-radius:5px; background:#2196F3; color:white; transition:0.2s; }
-button:hover { background:#1976D2; }
-#messages { flex:1; overflow-y:auto; padding:10px; display:flex; flex-direction:column; gap:8px; }
-.message { padding:10px; border-radius:12px; max-width:70%; word-wrap:break-word; display:flex; align-items:flex-start; gap:8px; opacity:0; transform:translateY(20px); transition:0.3s; }
-.left { background:#ddd; align-self:flex-start; }
-.right { background:#4CAF50; color:white; align-self:flex-end; flex-direction:row-reverse; }
-.avatar { width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:white; font-weight:bold; font-size:14px; flex-shrink:0; }
-input { padding:10px; margin:5px 0; width:100%; box-sizing:border-box; border-radius:5px; border:1px solid #ccc; }
-#chatContainer { display:flex; flex-direction:column; height:100vh; }
-#sendBtn { margin-top:5px; }
+/* -------------------- Global -------------------- */
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',sans-serif;background:#1e1e2f;color:white;display:flex;flex-direction:column;height:100vh;overflow:hidden;}
+button,input{outline:none;}
+button{cursor:pointer;border:none;border-radius:8px;padding:12px 25px;font-size:16px;color:white;background:linear-gradient(90deg,#4facfe,#00f2fe);transition:0.3s;}
+button:hover{opacity:0.85;}
+input{padding:12px;margin:5px 0;width:100%;border-radius:8px;border:none;background:#2c2c3e;color:white;}
+h1,h2{margin-bottom:20px;text-align:center;}
+/* -------------------- Containers -------------------- */
+#menu,#loginForm,#registerForm,#chatContainer{width:100%;max-width:700px;margin:auto;padding:20px;display:none;}
+#menu{display:flex;flex-direction:column;align-items:center;gap:15px;margin-top:100px;}
+#chatContainer{display:flex;flex-direction:column;height:100vh;background:#272738;}
+#messages{flex:1;overflow-y:auto;padding:15px;display:flex;flex-direction:column;gap:12px;}
+.message{padding:12px 18px;border-radius:15px;max-width:70%;word-wrap:break-word;display:flex;align-items:flex-start;gap:10px;opacity:0;transform:translateY(30px);transition:0.4s;}
+.left{background:#2c2c3e;align-self:flex-start;}
+.right{background:#4caf50;align-self:flex-end;flex-direction:row-reverse;}
+.avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:16px;flex-shrink:0;}
+#sendContainer{display:flex;gap:10px;margin-top:5px;}
+.aura{box-shadow:0 0 15px 5px gold;animation:auraGlow 1.5s infinite alternate;}
+@keyframes auraGlow{0%{box-shadow:0 0 15px 5px gold;}50%{box-shadow:0 0 25px 10px gold;}100%{box-shadow:0 0 15px 5px gold;}}
+/* -------------------- Scrollbar -------------------- */
+#messages::-webkit-scrollbar{width:8px;}
+#messages::-webkit-scrollbar-thumb{background:#555;border-radius:4px;}
+#messages::-webkit-scrollbar-track{background:#1e1e2f;}
 </style>
 </head>
 <body>
 
+<!-- MENU -->
 <div id="menu">
-  <h1>Bienvenue !</h1>
+  <h1>Ultimate Owner Chat</h1>
   <button id="showLogin">Login</button>
   <button id="showRegister">Register</button>
 </div>
 
+<!-- LOGIN FORM -->
 <div id="loginForm">
   <h2>Login</h2>
-  <input id="loginUsername" placeholder="Nom d'utilisateur">
-  <input id="loginPassword" type="password" placeholder="Mot de passe">
-  <button id="loginBtn">Se connecter</button>
-  <button id="backFromLogin">Retour</button>
+  <input id="loginUsername" placeholder="Username">
+  <input id="loginPassword" type="password" placeholder="Password">
+  <button id="loginBtn">Login</button>
+  <button id="backFromLogin">Back</button>
 </div>
 
+<!-- REGISTER FORM -->
 <div id="registerForm">
   <h2>Register</h2>
-  <input id="regUsername" placeholder="Nom d'utilisateur">
-  <input id="regPassword" type="password" placeholder="Mot de passe">
-  <button id="registerBtn">Créer un compte</button>
-  <button id="backFromRegister">Retour</button>
+  <input id="regUsername" placeholder="Username">
+  <input id="regPassword" type="password" placeholder="Password">
+  <button id="registerBtn">Register</button>
+  <button id="backFromRegister">Back</button>
 </div>
 
+<!-- CHAT -->
 <div id="chatContainer">
   <div id="messages"></div>
-  <input id="messageInput" placeholder="Écris ton message...">
-  <button id="sendBtn">Envoyer</button>
+  <div id="sendContainer">
+    <input id="messageInput" placeholder="Type a message...">
+    <button id="sendBtn">Send</button>
+  </div>
 </div>
 
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
@@ -54,91 +71,90 @@ input { padding:10px; margin:5px 0; width:100%; box-sizing:border-box; border-ra
 const socket = io();
 let currentUser = { username:null, special:false };
 const userColors = {};
+function getColor(username){ if(userColors[username]) return userColors[username]; const colors=['#f44336','#e91e63','#9c27b0','#3f51b5','#2196F3','#009688','#4CAF50','#FF9800','#795548','#607d8b']; const color=colors[Math.floor(Math.random()*colors.length)]; userColors[username]=color; return color; }
 
-function getColor(username){
-  if(userColors[username]) return userColors[username];
-  const colors = ['#f44336','#e91e63','#9c27b0','#3f51b5','#2196F3','#009688','#4CAF50','#FF9800','#795548','#607d8b'];
-  const color = colors[Math.floor(Math.random()*colors.length)];
-  userColors[username] = color;
-  return color;
-}
+// ----------------- MENU NAV -----------------
+document.getElementById('showLogin').onclick=()=>{document.getElementById('menu').style.display='none';document.getElementById('loginForm').style.display='block';};
+document.getElementById('showRegister').onclick=()=>{document.getElementById('menu').style.display='none';document.getElementById('registerForm').style.display='block';};
+document.getElementById('backFromLogin').onclick=()=>{document.getElementById('loginForm').style.display='none';document.getElementById('menu').style.display='flex';};
+document.getElementById('backFromRegister').onclick=()=>{document.getElementById('registerForm').style.display='none';document.getElementById('menu').style.display='flex';};
 
-// Menu
-document.getElementById('showLogin').onclick = () => { document.getElementById('menu').style.display='none'; document.getElementById('loginForm').style.display='block'; }
-document.getElementById('showRegister').onclick = () => { document.getElementById('menu').style.display='none'; document.getElementById('registerForm').style.display='block'; }
-document.getElementById('backFromLogin').onclick = () => { document.getElementById('loginForm').style.display='none'; document.getElementById('menu').style.display='flex'; }
-document.getElementById('backFromRegister').onclick = () => { document.getElementById('registerForm').style.display='none'; document.getElementById('menu').style.display='flex'; }
-
-// Register
-document.getElementById('registerBtn').onclick = async () => {
-  const username = document.getElementById('regUsername').value.trim();
-  const password = document.getElementById('regPassword').value.trim();
-  if(!username || !password) return alert('Remplis tous les champs.');
-
-  const res = await fetch('/register',{
-    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username, password })
-  });
-  const data = await res.json();
-  if(data.success) startChat(data.username, data.id===1);
+// ----------------- REGISTER -----------------
+document.getElementById('registerBtn').onclick=async()=>{
+  const username=document.getElementById('regUsername').value.trim();
+  const password=document.getElementById('regPassword').value.trim();
+  if(!username||!password)return alert('Fill all fields');
+  const res=await fetch('/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})});
+  const data=await res.json();
+  if(data.success) startChat(data.username,data.id===1);
   else alert(data.message);
 };
 
-// Login
-document.getElementById('loginBtn').onclick = async () => {
-  const username = document.getElementById('loginUsername').value.trim();
-  const password = document.getElementById('loginPassword').value.trim();
-  if(!username || !password) return alert('Remplis tous les champs.');
-
-  const res = await fetch('/login',{
-    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username, password })
-  });
-  const data = await res.json();
-  if(data.success) startChat(data.username, data.special);
+// ----------------- LOGIN -----------------
+document.getElementById('loginBtn').onclick=async()=>{
+  const username=document.getElementById('loginUsername').value.trim();
+  const password=document.getElementById('loginPassword').value.trim();
+  if(!username||!password)return alert('Fill all fields');
+  const res=await fetch('/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})});
+  const data=await res.json();
+  if(data.success) startChat(data.username,data.special);
   else alert(data.message);
 };
 
-function startChat(username, special){
-  currentUser.username = username;
-  currentUser.special = special;
+// ----------------- START CHAT -----------------
+function startChat(username,special){
+  currentUser.username=username;
+  currentUser.special=special;
   document.getElementById('menu').style.display='none';
   document.getElementById('loginForm').style.display='none';
   document.getElementById('registerForm').style.display='none';
   document.getElementById('chatContainer').style.display='flex';
-  if(special) document.getElementById('chatContainer').style.background='#fff176';
   loadMessages();
 }
 
-// Messages
+// ----------------- LOAD MESSAGES -----------------
 async function loadMessages(){
-  const res = await fetch('/messages');
-  const messages = await res.json();
-  const container = document.getElementById('messages');
+  const res=await fetch('/messages');
+  const messages=await res.json();
+  const container=document.getElementById('messages');
   container.innerHTML='';
-  messages.forEach(msg => addMessage(msg.username, msg.message, msg.username===currentUser.username, msg.username==='Alexis'?'[Dev]-[Owner]':''));
-  container.scrollTop = container.scrollHeight;
+  messages.forEach(msg=>addMessage(msg.username,msg.message,msg.username===currentUser.username,msg.username==='alexis20114'));
+  container.scrollTop=container.scrollHeight;
 }
 
-function addMessage(username, message, isMine, tag){
-  const div = document.createElement('div');
-  div.className = 'message ' + (isMine?'right':'left');
-  div.innerHTML = `
+// ----------------- ADD MESSAGE -----------------
+function addMessage(username,message,isMine,specialAura){
+  const div=document.createElement('div');
+  div.className='message '+(isMine?'right':'left')+(specialAura?' aura':'');
+  div.innerHTML=`
     <div class="avatar" style="background:${getColor(username)}">${username.charAt(0).toUpperCase()}</div>
-    <div><b>${username}</b>${tag?'<span style="color:gold;">'+tag+'</span>':''}<br>${message}</div>
+    <div><b>${username}</b>${specialAura?'<span style="color:gold;"> [Owner]</span>':''}<br>${message}</div>
   `;
-  const container = document.getElementById('messages');
+  const container=document.getElementById('messages');
   container.appendChild(div);
-  setTimeout(()=>{ div.style.opacity='1'; div.style.transform='translateY(0)'; }, 50);
+  setTimeout(()=>{ div.style.opacity='1'; div.style.transform='translateY(0)'; },50);
   div.scrollIntoView({behavior:'smooth'});
 }
 
-// Socket.io
-socket.on('newMessage', msg => addMessage(msg.username, msg.message, msg.username===currentUser.username, msg.username==='Alexis'?'[Dev]-[Owner]':''));
+// ----------------- SOCKET.IO -----------------
+socket.on('newMessage', msg => addMessage(msg.username,msg.message,msg.username===currentUser.username,msg.username==='alexis20114'));
+socket.on('clearMessages',()=>{ document.getElementById('messages').innerHTML=''; });
 
-// Send
-document.getElementById('sendBtn').onclick = () => {
-  const input = document.getElementById('messageInput');
+// ----------------- SEND MESSAGE & OWNER COMMANDS -----------------
+document.getElementById('sendBtn').onclick=()=>{
+  const input=document.getElementById('messageInput');
   if(input.value.trim()==='') return;
-  socket.emit('sendMessage', { username:currentUser.username, message:input.value });
+  let message=input.value.trim();
+
+  // Owner commands
+  if(currentUser.username==='alexis20114'){
+    if(message.startsWith('/clear')){ socket.emit('sendMessage',{username:currentUser.username,message:'/clear'}); input.value=''; return; }
+    if(message.startsWith('/me')) message=`* ${currentUser.username} ${message.slice(4)} *`;
+    if(message.startsWith('/announce')) message=`📢 ANNOUNCE: ${message.slice(9)}`;
+    if(message.startsWith('/aura')) message=`✨ ${message.slice(5)} ✨`;
+  }
+
+  socket.emit('sendMessage',{ username:currentUser.username, message });
   input.value='';
 };
 </script>
