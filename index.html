@@ -1,22 +1,100 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <title>💬 Live Chat</title>
-  <link rel="stylesheet" href="style.css">
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+<meta charset="UTF-8">
+<title>Live Chat</title>
+<style>
+body { font-family: Arial, sans-serif; background: #f2f2f2; margin:0; padding:0; display:flex; flex-direction:column; height:100vh; }
+#loginForm, #chatContainer { width:100%; max-width:500px; margin:auto; padding:20px; }
+#chatContainer { display:none; flex:1; flex-direction:column; }
+#messages { flex:1; overflow-y:auto; padding:10px; display:flex; flex-direction:column; gap:5px; }
+.message { padding:10px; border-radius:10px; max-width:70%; word-wrap:break-word; }
+.left { background:#ddd; align-self:flex-start; }
+.right { background:#4CAF50; color:white; align-self:flex-end; }
+.tag { margin-left:5px; color: gold; }
+input, button { padding:10px; margin:5px 0; width:100%; }
+</style>
 </head>
 <body>
-  <div class="chat-container">
-    <h1>💬 Live Chat</h1>
-    <div id="messages"></div>
-    <div class="input-group">
-      <input id="msgBox" type="text" placeholder="Écris ton message...">
-      <button onclick="sendMessage()">Envoyer</button>
-    </div>
-  </div>
 
-  <script src="/socket.io/socket.io.js"></script>
-  <script src="script.js"></script>
+<div id="loginForm">
+  <h2>Login / Register</h2>
+  <input id="username" placeholder="Nom d'utilisateur">
+  <input id="password" type="password" placeholder="Mot de passe">
+  <button id="registerBtn">Register</button>
+  <button id="loginBtn">Login</button>
+</div>
+
+<div id="chatContainer">
+  <div id="messages"></div>
+  <input id="messageInput" placeholder="Écris ton message...">
+  <button id="sendBtn">Envoyer</button>
+</div>
+
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+<script>
+const socket = io('http://localhost:3000');
+let currentUser = { id:null, username:null, tag:null };
+
+// ---------------- Login / Register ----------------
+document.getElementById('registerBtn').onclick = async () => {
+  const username = document.getElementById('username').value;
+  const password = document.getElementById('password').value;
+  const res = await fetch('http://localhost:3000/register',{
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username,password })
+  });
+  const data = await res.json();
+  if(data.success) startChat(data);
+  else alert(data.message);
+};
+
+document.getElementById('loginBtn').onclick = async () => {
+  const username = document.getElementById('username').value;
+  const password = document.getElementById('password').value;
+  const res = await fetch('http://localhost:3000/login',{
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username,password })
+  });
+  const data = await res.json();
+  if(data.success) startChat(data);
+  else alert(data.message);
+};
+
+function startChat(data){
+  currentUser = { id:data.userId, username:data.username, tag:data.tag||'' };
+  document.getElementById('loginForm').style.display='none';
+  document.getElementById('chatContainer').style.display='flex';
+  loadMessages();
+}
+
+// ---------------- Messages ----------------
+async function loadMessages(){
+  const res = await fetch('http://localhost:3000/messages');
+  const messages = await res.json();
+  const container = document.getElementById('messages');
+  container.innerHTML = '';
+  messages.forEach(msg => addMessage(msg.username, msg.message, msg.user_id===currentUser.id, msg.username.toLowerCase()==='alexis'?'⭐':''));
+}
+
+function addMessage(username, message, isMine, tag){
+  const div = document.createElement('div');
+  div.className = 'message '+(isMine?'right':'left');
+  div.innerHTML = `<b>${username}</b>${tag?'<span class="tag">'+tag+'</span>'}<br>${message}`;
+  document.getElementById('messages').appendChild(div);
+  div.scrollIntoView();
+}
+
+// ---------------- Socket.io ----------------
+socket.on('newMessage', msg => {
+  addMessage(msg.username, msg.message, msg.user_id===currentUser.id, msg.username.toLowerCase()==='alexis'?'⭐':'');
+});
+
+// ---------------- Send Message ----------------
+document.getElementById('sendBtn').onclick = () => {
+  const input = document.getElementById('messageInput');
+  if(input.value.trim()==='') return;
+  socket.emit('sendMessage', { userId:currentUser.id, username:currentUser.username, message: input.value });
+  input.value='';
+};
+</script>
 </body>
 </html>
