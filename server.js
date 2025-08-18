@@ -1,85 +1,76 @@
 import express from 'express';
+import { createClient } from '@supabase/supabase-js';
 import bodyParser from 'body-parser';
 import cors from 'cors';
-import bcrypt from 'bcryptjs';
-import { createClient } from '@supabase/supabase-js';
 import http from 'http';
 import { Server } from 'socket.io';
-
-const supabase = createClient(
-  'https://bbqnqoruebbvticjcyvc.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJicW5xb3J1ZWJidnRpY2pjeXZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU0ODYxOTYsImV4cCI6MjA3MTA2MjE5Nn0.Zy_1L1aIZmxEbgakFf1DXDXVccOwdnveaT-ueoomrRs'
-);
+import bcrypt from 'bcryptjs';
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "*" } });
+const io = new Server(server, { cors: { origin: '*' } });
+
+const supabaseUrl = 'https://YOUR_PROJECT.supabase.co';
+const supabaseKey = 'YOUR_SUPABASE_KEY';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static('public'));
 
-// ---------- AUTH ----------
-app.post('/register', async (req,res)=>{
+// -------- REGISTER --------
+app.post('/register', async (req, res) => {
   const { username, password } = req.body;
-  if(!username || !password) return res.status(400).json({ success:false, message:'Fill all fields' });
-
-  const { data: existData } = await supabase.from('Acounts').select('*').eq('username', username).single();
-  if(existData) return res.status(400).json({ success:false, message:'Username already exists' });
-
-  const hashed = bcrypt.hashSync(password,10);
-  const { data, error } = await supabase.from('Acounts').insert([{ username, password:hashed }]).select();
-  if(error) return res.status(500).json({ success:false, message:'Could not create account' });
-
-  res.json({ success:true, username:data[0].username, id:data[0].id });
+  const { data } = await supabase.from('Acounts').select('*').eq('username', username);
+  if (data.length) return res.json({ success: false, message: 'Username already exists' });
+  const hash = bcrypt.hashSync(password, 10);
+  const { error } = await supabase.from('Acounts').insert([{ username, password: hash, role: 'member' }]);
+  if (error) return res.json({ success: false, message: error.message });
+  res.json({ success: true, username, role: 'member' });
 });
 
-app.post('/login', async (req,res)=>{
+// -------- LOGIN --------
+app.post('/login', async (req, res) => {
   const { username, password } = req.body;
-  if(!username || !password) return res.status(400).json({ success:false, message:'Fill all fields' });
-
-  const { data, error } = await supabase.from('Acounts').select('*').eq('username', username).single();
-  if(error || !data) return res.status(404).json({ success:false, message:'User not found' });
-
-  if(bcrypt.compareSync(password, data.password)){
-    const special = (username==='alexis20114'); // special aura user
-    res.json({ success:true, username:data.username, special });
-  } else {
-    res.status(401).json({ success:false, message:'Incorrect password' });
-  }
+  const { data } = await supabase.from('Acounts').select('*').eq('username', username).single();
+  if (!data) return res.json({ success: false, message: 'User not found' });
+  const valid = bcrypt.compareSync(password, data.password);
+  if (!valid) return res.json({ success: false, message: 'Incorrect password' });
+  res.json({ success: true, username, role: data.role });
 });
 
-app.get('/messages', async (req,res)=>{
-  const { data, error } = await supabase.from('messages').select('*');
-  if(error) return res.status(500).json([]);
-  res.json(data);
-});
-
-// ---------- SOCKET.IO ----------
-io.on('connection', (socket)=>{
-  console.log('User connected');
-
-  socket.on('sendMessage', async ({ username, message })=>{
-    if(!message) return;
-
-    // ---------- Commands ----------
-    if(message.startsWith('/clear')){
-      socket.emit('clearMessages');
+// -------- MESSAGES --------
+let messages = [];
+io.on('connection', (socket) => {
+  socket.on('sendMessage', async (msg) => {
+    // Owner commands
+    if (msg.role === 'owner' && msg.message.startsWith('/mod ')) {
+      const target = msg.message.split(' ')[1];
+      await supabase.from('Acounts').update({ role: 'mod' }).eq('username', target);
+      io.emit('sendSystem', `${target} has been promoted to Mod!`);
+      return;
+    }
+    if (msg.role === 'owner' && msg.message.startsWith('/unmod ')) {
+      const target = msg.message.split(' ')[1];
+      await supabase.from('Acounts').update({ role: 'member' }).eq('username', target);
+      io.emit('sendSystem', `${target} has been demoted to Member!`);
       return;
     }
 
-    if(message.startsWith('/me')){
-      message = `* ${username} ${message.slice(4)} *`;
-    }
-
-    const { data, error } = await supabase.from('messages').insert([{ username, message }]).select();
-    if(error) return console.log('Error inserting message:', error.message);
-
-    io.emit('newMessage',{ username, message: data[0].message });
+    messages.push(msg);
+    io.emit('newMessage', msg);
   });
 
-  socket.on('disconnect', ()=>console.log('User disconnected'));
+  socket.on('kickUser', (data) => {
+    io.emit('sendSystem', `${data.target} has been kicked (temporary).`);
+  });
+
+  socket.on('clearMessages', () => {
+    messages = [];
+    io.emit('clearMessages');
+  });
 });
 
-const PORT = process.env.PORT||3000;
-server.listen(PORT,()=>console.log(`Server running at http://localhost:${PORT}`));
+app.get('/messages', (req, res) => res.json(messages));
+
+server.listen(3000, () => console.log('Server running on port 3000'));
