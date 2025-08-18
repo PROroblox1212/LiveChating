@@ -34,7 +34,7 @@ app.post('/register', async (req, res) => {
   const hashed = bcrypt.hashSync(password, 10);
 
   const { data, error } = await supabase
-    .from('users')
+    .from('Acounts') // <-- ta table
     .insert([{ username, password: hashed }]);
 
   if(error) return res.status(400).json({ success:false, message:error.message });
@@ -46,7 +46,7 @@ app.post('/login', async (req, res) => {
   const { username, password } = req.body;
 
   const { data, error } = await supabase
-    .from('users')
+    .from('Acounts') // <-- ta table
     .select('*')
     .eq('username', username)
     .single();
@@ -65,7 +65,7 @@ app.post('/login', async (req, res) => {
 app.get('/messages', async (req,res) => {
   const { data, error } = await supabase
     .from('messages')
-    .select('id,message,created_at,user_id,users(username)')
+    .select('id,message,created_at,user_id')
     .order('created_at',{ ascending:true });
 
   if(error) return res.status(400).json([]);
